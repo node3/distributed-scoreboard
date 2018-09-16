@@ -1,16 +1,11 @@
 package main
 
 import (
+	"distributed-scoreboard/utils"
 	"fmt"
 	"github.com/samuel/go-zookeeper/zk"
 	"os"
 	"time"
-)
-
-const (
-	onlineDir = "/online"
-	scoreDir = "/score"
-	FlagRegular = int32(0)
 )
 
 func exitIfError(err error, msg string, player string) {
@@ -21,39 +16,39 @@ func exitIfError(err error, msg string, player string) {
 	}
 }
 
-func getZnodePath(dir string, player string) string {
-	return dir + "/" + player
-}
-
 func main() {
 	player := "Watcher"
+	server := "127.0.0.1:2181"
 
+	/* ********************** Register with server ****************** */
 	// Connect to server
-	conn, _, err := zk.Connect([]string{"127.0.0.1"}, time.Second)
-	exitIfError(err, "could not connect to Zk server", player)
+	conn, _, err := zk.Connect([]string{server}, time.Second)
+	utils.ExitIfError(err, "Could not connect to Zk server")
 	defer conn.Close()
 
-	// Create the parent directory for online node
+	// Create the parent directory for online nodes
 	acl := zk.WorldACL(zk.PermAll)
-	znode, err := conn.Create(onlineDir, []byte("Online node directory"), FlagRegular, acl)
+	znode, err := conn.Create(utils.OnlineDir, []byte("Online node directory"), utils.FlagRegular, acl)
 	if znode != "" {
 		fmt.Println("Online node directory created")
 	}
 
 	// Create the parent directory for scores
-	znode, err = conn.Create(scoreDir, []byte("Scoreboard directory"), FlagRegular, acl)
+	znode, err = conn.Create(utils.ScoreDir, []byte("Scoreboard directory"), utils.FlagRegular, acl)
 	if znode != "" {
 		fmt.Println("Scoreboard directory created")
 	}
 
-	children, _, err := conn.Children(scoreDir)
+	/* ********************* Keep Watching *************************** */
+	children, _, err := conn.Children(utils.ScoreDir)
 	exitIfError(err, "Could not get children", player)
+	fmt.Printf("here 3")
 	for _, name := range children {
-		znodePath := getZnodePath(scoreDir, name)
+		znodePath := utils.GetZnodePath(utils.ScoreDir, name)
 		fmt.Println(znodePath)
 		data, _, err := conn.Get(znodePath)
 		exitIfError(err, "could not data from " + znodePath, player)
-		fmt.Printf("/dir/%s: %s\n", name, string(data))
+		fmt.Printf("%s stored at %s \n", data, znodePath)
 		//err = conn.Delete("/dir/" + name, 0)
 	}
 	// Create a data structure to store score and online presence data

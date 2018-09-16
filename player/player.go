@@ -1,31 +1,46 @@
 package main
 
 import (
+	"distributed-scoreboard/utils"
+	"encoding/json"
 	"fmt"
 	"github.com/samuel/go-zookeeper/zk"
-	"os"
 	"strconv"
 	"time"
-	"distributed-scoreboard/utils"
 )
-
-func getZnodePath(dir string, player string) string {
-	return dir + "/" + player
-}
 
 func main() {
 	player := "Thor"
-	score := 0
+	server := "127.0.0.1:2181"
+
+	// Register with server
+	// Connect to server
+	conn, _, err := zk.Connect([]string{server}, time.Second)
+	utils.ExitIfError(err, "Could not connect to Zk server")
+	defer conn.Close()
+
+	// Create the parent directory for online nodes
+	acl := zk.WorldACL(zk.PermAll)
+	znode, err := conn.Create(utils.OnlineDir, []byte("Online node directory"), utils.FlagRegular, acl)
+	if znode != "" {
+		fmt.Println("Online node directory created")
+	}
+
+	// Create the parent directory for scores
+	znode, err = conn.Create(utils.ScoreDir, []byte("Scoreboard directory"), utils.FlagRegular, acl)
+	if znode != "" {
+		fmt.Println("Scoreboard directory created")
+	}
 
 	// Player goes online - create an ephemeral node
-	onlineZnodePath := getZnodePath(utils.OnlineDir, player)
+	onlineZnodePath := utils.GetZnodePath(utils.OnlineDir, player)
 	znode, err = conn.Create(onlineZnodePath, []byte(player), utils.FlagEphemeral, acl)
-	utils.exitIfError(err, "could not go online (ephemeral node not created)", player)
+	utils.ExitIfError(err, "Could not go online (ephemeral node not created)")
 	fmt.Printf("Znode %s created. %s is online.\n", znode, player)
 
 	// Register with scoreboard
-	scoreZnodePath := getZnodePath(scoreDir, player)
-	znode, err = conn.Create(scoreZnodePath, []byte(strconv.Itoa(score)), FlagRegular, acl)
+	scoreZnodePath := utils.GetZnodePath(utils.ScoreDir, player)
+	znode, err = conn.Create(scoreZnodePath, []byte("0"), utils.FlagRegular, acl)
 	if znode != "" {
 		fmt.Printf("Znode %s created.\n", znode)
 	}
@@ -33,14 +48,27 @@ func main() {
 
 	// Get the initial data
 	data, stat, err := conn.Get(scoreZnodePath)
-	exitIfError(err, "could not get the initial score", player)
-	score, _ = strconv.Atoi(string(data))
+	utils.ExitIfError(err, "Could not get the initial score")
+	tmp, _ := strconv.Atoi(string(data))
+	score := int64(tmp)
+
+	playerData := map[string]int64{"score": score, "timestamp": 0}
 
 	// Post scores
 	for true {
+		// Update playerData
 		score++
-		stat, err = conn.Set(scoreZnodePath, []byte(strconv.Itoa(score)), stat.Version)
-		exitIfError(err, "could not post score", player)
-		fmt.Println(strconv.Itoa(score))
+		playerData["score"] = score
+		playerData["timestamp"] = time.Now().Unix()
+		serializedPlayerData, err := json.Marshal(playerData)
+		utils.ExitIfError(err, "Could not serialize playerData")
+
+		// Send data to zk
+		stat, err = conn.Set(scoreZnodePath, serializedPlayerData, stat.Version)
+		utils.ExitIfError(err, "Could not post score to ZK")
+		fmt.Printf("%d\n", playerData["score"])
+
+		// sleep
+		time.Sleep(3000 * time.Millisecond)
 	}
 }

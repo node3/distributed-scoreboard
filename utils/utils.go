@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"github.com/samuel/go-zookeeper/zk"
 	"os"
-	"time"
 )
 
 const (
@@ -15,30 +14,24 @@ const (
 	ScoreDir = string("/score")
 )
 
-func exitIfError(err error, msg string, player string) {
+type Data struct {
+	Score int64 	`json:"score"`
+	Timestamp int64	`json:"timestamp"`
+}
+
+
+func GetZnodePath(dir string, player string) string {
+	return dir + "/" + player
+}
+
+func ExitIfError(err error, msg string) {
 	if err != nil {
-		fmt.Printf("%s %s. %s\n", player, msg, err)
+		fmt.Printf("%s. %s\n", msg, err)
 		//panic(err)
 		os.Exit(1)
 	}
 }
 
-func register(server string, port string, player string) (*zk.Conn, []zk.ACL) {
-	// Connect to server
-	conn, _, err := zk.Connect([]string{server}, time.Second)
-	exitIfError(err, "could not connect to Zk server", player)
-	defer conn.Close()
-
-	// Create the parent directory for online nodes
-	acl := zk.WorldACL(zk.PermAll)
-	znode, err := conn.Create(OnlineDir, []byte("Online node directory"), FlagRegular, acl)
-	if znode != "" {
-		fmt.Println("Online node directory created")
-	}
-
-	// Create the parent directory for scores
-	znode, err = conn.Create(ScoreDir, []byte("Scoreboard directory"), FlagRegular, acl)
-	if znode != "" {
-		fmt.Println("Scoreboard directory created")
-	}
-}
+//func Register(server string, player string) (*zk.Conn, []zk.ACL) {
+//
+//}
