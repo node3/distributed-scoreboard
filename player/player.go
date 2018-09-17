@@ -5,15 +5,23 @@ import (
 	"encoding/json"
 	"fmt"
 	"github.com/samuel/go-zookeeper/zk"
+	"os"
 	"strconv"
 	"time"
 )
 
 func main() {
-	player := "Thor"
-	server := "127.0.0.1:2181"
+	// Parse arguments
+	args := os.Args[1:]
+	if len(args) != 2 {
+		fmt.Printf("Expected 2 arguments, got %d\n", len(args))
+		os.Exit(1)
+	}
 
-	// Register with server
+	player := args[1]
+	server := args[0]
+
+	/* ********************** Register with server ****************** */
 	// Connect to server
 	conn, _, err := zk.Connect([]string{server}, time.Second)
 	utils.ExitIfError(err, "Could not connect to Zk server")
@@ -46,7 +54,8 @@ func main() {
 	}
 	fmt.Printf("%s can now post scores.\n", player)
 
-	// Get the initial data
+	/* ************************* Send data ************************** */
+	// Get the initial data from zookeeper
 	data, stat, err := conn.Get(scoreZnodePath)
 	utils.ExitIfError(err, "Could not get the initial score")
 	tmp, _ := strconv.Atoi(string(data))

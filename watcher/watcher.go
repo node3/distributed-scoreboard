@@ -2,6 +2,7 @@ package main
 
 import (
 	"distributed-scoreboard/utils"
+	"encoding/json"
 	"fmt"
 	"github.com/samuel/go-zookeeper/zk"
 	"os"
@@ -12,9 +13,6 @@ import (
 )
 
 func main() {
-	// Initialize data structures
-	var online map[string]bool
-
 	//server := "127.0.0.1:2181"
 	// Parse arguments
 	args := os.Args[1:]
@@ -24,17 +22,17 @@ func main() {
 	}
 
 	server := args[0]
-	displaySize, err := strconv.Atoi(args[1])
+	listSize, err := strconv.Atoi(args[1])
 	utils.ExitIfError(err, "Could not convert size to integer.")
-	if displaySize > 25 || displaySize < 1 {
-		fmt.Printf("Display size expected in range [1, 25], got %d", displaySize)
+	if listSize > 25 || listSize < 1 {
+		fmt.Printf("Display size expected in range [1, 25], got %d", listSize)
 		os.Exit(1)
 	}
 
 	/* ********************** Register with server ****************** */
 	// Connect to server
 	conn, _, err := zk.Connect([]string{server}, time.Second)
-	utils.ExitIfError(err, "Could not connect to Zk server")
+	utils.ExitIfError(err, "Conn: Could not connect to Zk server")
 	defer conn.Close()
 
 	// Create the parent directory for online nodes
@@ -50,26 +48,45 @@ func main() {
 		fmt.Println("Scoreboard directory created")
 	}
 
-	/* ********************* Communication between routine ********************** */
-	ch := make(chan utils.Update, 10)
+	/* ********************* Initialize data structures ********************** */
+	ch := make(chan utils.Update, 50)
+	var online map[string]bool
+	knownPlayers := make(map[string]bool)
+	recentScores := &utils.RecentScores {
+		ListSize: 		0,
+		MaxListSize: 	listSize,
+		Queue:			make(chan utils.Data, listSize),
+	}
 
 	/* ********************* Track online players *************************** */
-	go watchOnlineStatus(conn, ch)
+	go watchOnlineStatus(server, ch)
+
 
 	/* ********************* Display score and status ************************* */
 	for true {
 		updateMsg := <-ch
 		if updateMsg.Type == utils.OnlineStatusUpdate {
 			online = make(map[string]bool)
-			if len(updateMsg.OnlinePlayers) > 0 {
-				for _, player := range strings.Split(updateMsg.OnlinePlayers, ",") {
+			if len(updateMsg.Players) > 0 {
+				for _, player := range strings.Split(updateMsg.Players, ",") {
 					online[player] = true
+					if _, ok := knownPlayers[player]; !ok {
+						knownPlayers[player] = true
+						go watchPlayerScores(server, player, ch)
+					}
 				}
 			}
 		} else {
-
+			data := utils.Data {
+				Score: updateMsg.Score,
+				Player: updateMsg.Players,
+			}
+			recentScores.Push(data)
 		}
-		display(online)
+		cmd := exec.Command("clear")
+		cmd.Stdout = os.Stdout
+		cmd.Run()
+		recentScores.Display(online)
 	}
 	/* ********************* Keep Watching for scores *************************** */
 	//for true {
@@ -92,17 +109,52 @@ func main() {
 	// Display the data and update on watch
 }
 
-func watchOnlineStatus(conn *zk.Conn, ch chan utils.Update) {
+func watchOnlineStatus(server string, ch chan utils.Update) {
+	// Create a new connection for the new routine
+	conn, _, err := zk.Connect([]string{server}, time.Second)
+	utils.ExitIfError(err, "Conn: Could not connect to Zk server")
+	defer conn.Close()
+
 	// Keep watching forever
 	for true {
 		children, _, ech, err := conn.ChildrenW(utils.OnlineDir)
 		utils.ExitIfError(err, "watchOnlineStatus: Could not watch for online players")
 		// Get all the children, convert to a csv
 		updateMsg := utils.Update{
-			Type:        	utils.OnlineStatusUpdate,
-			OnlinePlayers: 	strings.Join(children[:],","),
-			Score:       	0,
-			Timestamp:   	0,
+			Type:      utils.OnlineStatusUpdate,
+			Players:   strings.Join(children[:],","),
+			Score:     0,
+			Timestamp: 0,
+		}
+
+		// send into the channel from which display reads
+		ch <- updateMsg
+
+		// wait for zookeeper to send something into the channel
+		_ = <-ech
+	}
+}
+
+
+func watchPlayerScores(server string, player string, ch chan utils.Update) {
+	// Create a new connection for the new routine
+	conn, _, err := zk.Connect([]string{server}, time.Second)
+	utils.ExitIfError(err, "Conn: Could not connect to Zk server")
+	defer conn.Close()
+
+	var data map[string]int64
+	znodePath := utils.GetZnodePath(utils.ScoreDir, player)
+	for true {
+		rawData, _, ech, err := conn.GetW(znodePath)
+		utils.ExitIfError(err, "watchPlayerScores: Could not GetW score for player " + player)
+		json.Unmarshal(rawData, &data)
+		utils.ExitIfError(err, "watchPlayerScores: Could not convert byte array to int64")
+		// Send the main routine updated score
+		updateMsg := utils.Update{
+			Type:      utils.ScoreUpdate,
+			Players:   player,
+			Score:     data["score"],
+			Timestamp: data["timestamp"],
 		}
 
 		// send into the channel from which display reads
