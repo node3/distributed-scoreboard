@@ -5,13 +5,15 @@ import (
 	"fmt"
 	"github.com/samuel/go-zookeeper/zk"
 	"os"
+	"os/exec"
 	"strconv"
+	"strings"
 	"time"
 )
 
 func main() {
 	// Initialize data structures
-	var isOnline map[string]bool
+	var online map[string]bool
 
 	//server := "127.0.0.1:2181"
 	// Parse arguments
@@ -48,17 +50,27 @@ func main() {
 		fmt.Println("Scoreboard directory created")
 	}
 
-	/* ********************* Track online players *************************** */
-	for true {
-		children, _, ech, err := conn.ChildrenW(utils.OnlineDir)
-		utils.ExitIfError(err, "Could not watch for online players")
-		isOnline := make(map[string]bool)
-		for _, name := range children {
-			isOnline[name] = true
-		}
-		_ = <-ech
-	}
+	/* ********************* Communication between routine ********************** */
+	ch := make(chan utils.Update, 10)
 
+	/* ********************* Track online players *************************** */
+	go watchOnlineStatus(conn, ch)
+
+	/* ********************* Display score and status ************************* */
+	for true {
+		updateMsg := <-ch
+		if updateMsg.Type == utils.OnlineStatusUpdate {
+			online = make(map[string]bool)
+			if len(updateMsg.OnlinePlayers) > 0 {
+				for _, player := range strings.Split(updateMsg.OnlinePlayers, ",") {
+					online[player] = true
+				}
+			}
+		} else {
+
+		}
+		display(online)
+	}
 	/* ********************* Keep Watching for scores *************************** */
 	//for true {
 	//	children, _, err := conn.Children(utils.ScoreDir)
@@ -80,4 +92,33 @@ func main() {
 	// Display the data and update on watch
 }
 
+func watchOnlineStatus(conn *zk.Conn, ch chan utils.Update) {
+	// Keep watching forever
+	for true {
+		children, _, ech, err := conn.ChildrenW(utils.OnlineDir)
+		utils.ExitIfError(err, "watchOnlineStatus: Could not watch for online players")
+		// Get all the children, convert to a csv
+		updateMsg := utils.Update{
+			Type:        	utils.OnlineStatusUpdate,
+			OnlinePlayers: 	strings.Join(children[:],","),
+			Score:       	0,
+			Timestamp:   	0,
+		}
 
+		// send into the channel from which display reads
+		ch <- updateMsg
+
+		// wait for zookeeper to send something into the channel
+		_ = <-ech
+	}
+}
+
+func display(online map[string]bool) {
+	cmd := exec.Command("clear") //Linux example, its tested
+	cmd.Stdout = os.Stdout
+	cmd.Run()
+	//fmt.Println(online)
+	for player := range online {
+		fmt.Printf("%-20s\t*\n", player)
+	}
+}
