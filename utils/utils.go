@@ -139,8 +139,8 @@ func GetZnodePath(dir string, player string) string {
 
 func ExitIfError(err error, msg string) {
 	if err != nil {
-		fmt.Printf("%s. Error: %s\n", msg, err)
+		fmt.Printf("%s. Error: %s.\nProgram will now terminate.", msg, err)
 		//panic(err)
-		os.Exit(1)
+		os.Exit(0)
 	}
 }

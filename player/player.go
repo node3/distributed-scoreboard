@@ -80,7 +80,16 @@ func main() {
 			utils.ExitIfError(err, "Could not read score from console")
 			text = strings.TrimSpace(text)
 			tmp, err = strconv.Atoi(string(text))
-			utils.ExitIfError(err, "Could not convert score from string to int")
+			if err != nil {
+				fmt.Println("Could not convert input from string to int. Please enter a numeric value.")
+				continue
+			}
+
+			// Validate input score to be grater than equal to 0
+			if tmp < 0 {
+				fmt.Println("Please enter a non-negative value")
+				continue
+			}
 
 			// Update playerData data structure
 			playerData["score"] = int64(tmp)
@@ -102,7 +111,7 @@ func main() {
 		utils.ExitIfError(err, "Could not convert meanDelay string input to int")
 		meanDelay := int64(intMeanDelay)
 		if meanDelay < utils.MinMeanDelay || meanDelay > utils.MaxMeanDelay {
-			fmt.Printf("Please enter a meanDelay of value between [%d, %d]", utils.MinMeanDelay, utils.MaxMeanDelay)
+			fmt.Printf("Please enter a meanDelay of value between [%d, %d]\n", utils.MinMeanDelay, utils.MaxMeanDelay)
 			os.Exit(1)
 		}
 
@@ -111,7 +120,7 @@ func main() {
 		meanScore := int64(intMeanScore)
 		//fmt.Println(count, meanDelay, meanScore)
 		if meanScore < utils.MinMeanScore {
-			fmt.Printf("Please enter a meanScore of value >= %d to allow a variety in scores", utils.MinMeanScore)
+			fmt.Printf("Please enter a meanScore of value >= %d to allow a variety in scores\n", utils.MinMeanScore)
 			os.Exit(1)
 		}
 
