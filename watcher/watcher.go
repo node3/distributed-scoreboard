@@ -13,7 +13,6 @@ import (
 )
 
 func main() {
-	//server := "127.0.0.1:2181"
 	// Parse arguments
 	args := os.Args[1:]
 	if len(args) != 2 {
@@ -96,25 +95,6 @@ func main() {
 		fmt.Println("")
 		highestScores.Display(online)
 	}
-	/* ********************* Keep Watching for scores *************************** */
-	//for true {
-	//	children, _, err := conn.Children(utils.ScoreDir)
-	//	utils.ExitIfError(err, "Could not get children")
-	//
-	//	for _, name := range children {
-	//		znodePath := utils.GetZnodePath(utils.ScoreDir, name)
-	//		fmt.Println(znodePath)
-	//		data, _, err := conn.Get(znodePath)
-	//		utils.ExitIfError(err, "Could not data from "+znodePath)
-	//		fmt.Printf("%s stored at %s \n", data, znodePath)
-	//		//err = conn.Delete("/dir/" + name, 0)
-	//	}
-	//	time.Sleep(500 * time.Millisecond)
-	//}
-	// Create a data structure to store score and online presence data
-	// Get initial tree structure, set watches
-	// Create a display function
-	// Display the data and update on watch
 }
 
 func watchOnlineStatus(server string, ch chan utils.Update) {
