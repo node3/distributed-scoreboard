@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"github.com/samuel/go-zookeeper/zk"
 	"os"
+	"strings"
 )
 
 const (
@@ -61,19 +62,20 @@ func (rs *RecentScores) Pop() Data {
 
 func (rs *RecentScores) Display(online map[string]bool) {
 	onlineStatus := ""
-	listSize := rs.ListSize
+	output := make([]string, rs.ListSize)
 	fmt.Println("Most recent scores")
 	fmt.Println("------------------")
-	for i := 0; i < listSize; i++ {
+	for i := rs.ListSize-1; i >= 0; i-- {
 		d := rs.Pop()
 		if _, ok := online[d.Player]; ok {
 			onlineStatus = "**"
 		} else {
 			onlineStatus = ""
 		}
-		fmt.Printf("%-20s\t%d\t%s\n", d.Player, d.Score, onlineStatus)
+		output[i] = fmt.Sprintf("%-20s\t%d\t%s\n", d.Player, d.Score, onlineStatus)
 		rs.Push(d)
 	}
+	fmt.Println(strings.Join(output, ""))
 }
 
 type HighestScores struct {
