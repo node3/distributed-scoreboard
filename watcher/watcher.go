@@ -58,14 +58,19 @@ func main() {
 		Queue:			make(chan utils.Data, listSize),
 	}
 
+	highestScores := &utils.HighestScores {
+		ListSize: 		0,
+		MaxListSize: 	listSize,
+		Records:		make([]utils.Data, listSize),
+	}
+
 	/* ********************* Track online players *************************** */
 	go watchOnlineStatus(server, ch)
-
 
 	/* ********************* Display score and status ************************* */
 	for true {
 		updateMsg := <-ch
-		if updateMsg.Type == utils.OnlineStatusUpdate {
+		if updateMsg.Type == utils.OnlineStatusUpdate {	// Online status change arrives at channel
 			online = make(map[string]bool)
 			if len(updateMsg.Players) > 0 {
 				for _, player := range strings.Split(updateMsg.Players, ",") {
@@ -76,17 +81,20 @@ func main() {
 					}
 				}
 			}
-		} else {
+		} else {										// Score post update arrives at channel
 			data := utils.Data {
 				Score: updateMsg.Score,
 				Player: updateMsg.Players,
 			}
 			recentScores.Push(data)
+			highestScores.Push(data)
 		}
 		cmd := exec.Command("clear")
 		cmd.Stdout = os.Stdout
 		cmd.Run()
 		recentScores.Display(online)
+		fmt.Println("")
+		highestScores.Display(online)
 	}
 	/* ********************* Keep Watching for scores *************************** */
 	//for true {
@@ -162,15 +170,5 @@ func watchPlayerScores(server string, player string, ch chan utils.Update) {
 
 		// wait for zookeeper to send something into the channel
 		_ = <-ech
-	}
-}
-
-func display(online map[string]bool) {
-	cmd := exec.Command("clear") //Linux example, its tested
-	cmd.Stdout = os.Stdout
-	cmd.Run()
-	//fmt.Println(online)
-	for player := range online {
-		fmt.Printf("%-20s\t*\n", player)
 	}
 }

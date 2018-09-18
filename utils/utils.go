@@ -76,6 +76,54 @@ func (rs *RecentScores) Display(online map[string]bool) {
 	}
 }
 
+type HighestScores struct {
+	ListSize    int
+	MaxListSize int
+	Records     []Data
+}
+
+func (hs *HighestScores) Push(d Data) {
+	if hs.ListSize == hs.MaxListSize {
+		if d.Score < hs.Records[0].Score {
+			return
+		}
+
+		for i := 1; i < hs.ListSize; i++ {
+			if d.Score < hs.Records[i].Score {
+				hs.Records[i-1] = d
+				return
+			} else {
+				hs.Records[i-1] = hs.Records[i]
+			}
+		}
+		hs.Records[hs.ListSize-1] = d
+	} else {
+		hs.ListSize++
+		for i := hs.ListSize-2; i >= 0 ; i-- {
+			if d.Score < hs.Records[i].Score {
+				hs.Records[i+1] = hs.Records[i]
+			} else {
+				hs.Records[i+1] = d
+				return
+			}
+		}
+		hs.Records[0] = d
+	}
+}
+
+func (hs *HighestScores) Display(online map[string]bool) {
+	onlineStatus := ""
+	fmt.Println("Highest scores")
+	fmt.Println("------------------")
+	for i := hs.ListSize-1; i >= 0; i-- {
+		if _, ok := online[hs.Records[i].Player]; ok {
+			onlineStatus = "**"
+		} else {
+			onlineStatus = ""
+		}
+		fmt.Printf("%-20s\t%d\t%s\n", hs.Records[i].Player, hs.Records[i].Score, onlineStatus)
+	}
+}
 
 func GetZnodePath(dir string, player string) string {
 	return dir + "/" + player
