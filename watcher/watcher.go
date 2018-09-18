@@ -67,7 +67,7 @@ func main() {
 	go watchOnlineStatus(server, ch)
 
 	/* ********************* Display score and status ************************* */
-	for true {
+	for {
 		updateMsg := <-ch
 		if updateMsg.Type == utils.OnlineStatusUpdate {	// Online status change arrives at channel
 			online = make(map[string]bool)
@@ -104,7 +104,7 @@ func watchOnlineStatus(server string, ch chan utils.Update) {
 	defer conn.Close()
 
 	// Keep watching forever
-	for true {
+	for {
 		children, _, ech, err := conn.ChildrenW(utils.OnlineDir)
 		utils.ExitIfError(err, "watchOnlineStatus: Could not watch for online players")
 		// Get all the children, convert to a csv
@@ -132,7 +132,7 @@ func watchPlayerScores(server string, player string, ch chan utils.Update) {
 
 	var data map[string]int64
 	znodePath := utils.GetZnodePath(utils.ScoreDir, player)
-	for true {
+	for {
 		rawData, _, ech, err := conn.GetW(znodePath)
 		utils.ExitIfError(err, "watchPlayerScores: Could not GetW score for player " + player)
 		json.Unmarshal(rawData, &data)

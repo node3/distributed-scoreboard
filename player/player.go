@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"github.com/samuel/go-zookeeper/zk"
+	"math/rand"
 	"os"
 	"strconv"
 	"strings"
@@ -72,7 +73,7 @@ func main() {
 	// Post scores
 	if manual == true {
 		reader := bufio.NewReader(os.Stdin)
-		for true{
+		for {
 			// Prompt user for score
 			fmt.Print("Enter score: ")
 			text, err := reader.ReadString('\n')
@@ -93,16 +94,43 @@ func main() {
 			fmt.Printf("Score %d posted to zookeeper.\n", playerData["score"])
 		}
 	} else {
+		// Parse the additional parameters to automate the score generation
 		count, err := strconv.Atoi(args[2])
 		utils.ExitIfError(err, "Could not convert count string input to int")
-		u_delay, err := strconv.Atoi(args[3])
-		utils.ExitIfError(err, "Could not convert u_delay string input to int")
-		u_score, err := strconv.Atoi(args[4])
-		utils.ExitIfError(err, "Could not convert u_score string input to int")
-		fmt.Println(count, u_delay, u_score)
-		for true {
+
+		intMeanDelay, err := strconv.Atoi(args[3])
+		utils.ExitIfError(err, "Could not convert meanDelay string input to int")
+		meanDelay := int64(intMeanDelay)
+		if meanDelay < utils.MinMeanDelay || meanDelay > utils.MaxMeanDelay {
+			fmt.Printf("Please enter a meanDelay of value between [%d, %d]", utils.MinMeanDelay, utils.MaxMeanDelay)
+			os.Exit(1)
+		}
+
+		intMeanScore, err := strconv.Atoi(args[4])
+		utils.ExitIfError(err, "Could not convert meanScore string input to int")
+		meanScore := int64(intMeanScore)
+		//fmt.Println(count, meanDelay, meanScore)
+		if meanScore < utils.MinMeanScore {
+			fmt.Printf("Please enter a meanScore of value >= %d to allow a variety in scores", utils.MinMeanScore)
+			os.Exit(1)
+		}
+
+		// define the standard deviations
+		var stdDevScore, stdDevDelay, delay int64
+		if meanScore - utils.MaxStdDev4Score >= 0 {
+			stdDevScore = utils.MaxStdDev4Score
+		} else {
+			stdDevScore = meanScore
+		}
+		if meanDelay - utils.MaxStdDev4Delay >= 0 {
+			stdDevDelay = utils.MaxStdDev4Delay
+		} else {
+			stdDevDelay = meanDelay
+		}
+		for count > 0 {
 			// Update playerData
-			score++
+			score = int64(rand.NormFloat64()) * meanScore + stdDevScore
+			delay = int64(rand.NormFloat64()) * meanDelay + stdDevDelay
 			playerData["score"] = score
 			playerData["timestamp"] = time.Now().Unix()
 			serializedPlayerData, err := json.Marshal(playerData)
@@ -111,10 +139,12 @@ func main() {
 			// Send data to zk
 			stat, err = conn.Set(scoreZnodePath, serializedPlayerData, stat.Version)
 			utils.ExitIfError(err, "Could not post score to ZK")
-			fmt.Printf("%d\n", playerData["score"])
+			fmt.Printf("Score %d posted to zookeeper.\n", score)
 
 			// sleep
-			time.Sleep(3000 * time.Millisecond)
+			count--
+			fmt.Printf("Sleeping for %s\n",time.Duration(delay) * time.Second)
+			time.Sleep(time.Duration(delay) * time.Second)
 		}
 	}
 }

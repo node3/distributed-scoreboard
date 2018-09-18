@@ -19,6 +19,12 @@ const (
 	OnlineStatusUpdate = 0
 	ScoreUpdate = 1
 
+	// player automation
+	MaxStdDev4Score = 50
+	MinMeanScore    = 10
+	MaxStdDev4Delay = 5
+	MinMeanDelay    = 5
+	MaxMeanDelay    = 10
 )
 
 type Update struct {
