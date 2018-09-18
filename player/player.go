@@ -127,10 +127,17 @@ func main() {
 		} else {
 			stdDevDelay = meanDelay
 		}
+
+		// define min and max score and delays
+		minScore := meanScore - stdDevScore
+		maxScore := meanScore + stdDevScore
+		minDelay := meanDelay - stdDevDelay
+		maxDelay := meanDelay + stdDevDelay
+
 		for count > 0 {
 			// Update playerData
-			score = int64(rand.NormFloat64()) * meanScore + stdDevScore
-			delay = int64(rand.NormFloat64()) * meanDelay + stdDevDelay
+			score = randomize(minScore, maxScore, stdDevScore, meanScore)
+			delay = randomize(minDelay, maxDelay, stdDevDelay, meanDelay)
 			playerData["score"] = score
 			playerData["timestamp"] = time.Now().Unix()
 			serializedPlayerData, err := json.Marshal(playerData)
@@ -147,4 +154,15 @@ func main() {
 			time.Sleep(time.Duration(delay) * time.Second)
 		}
 	}
+}
+
+func randomize(min, max, stddev, mean int64) int64 {
+	// Generate a number with normal probabilistic distribution
+	num := int64(rand.NormFloat64() * float64(stddev) + float64(mean))
+	if num < 0 {
+		return 0
+	}
+	return num
+	// Normalize the number to lie between min and max
+	//return (max - min) * (num/math.MaxInt64) + min
 }

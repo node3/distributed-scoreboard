@@ -20,7 +20,7 @@ const (
 	ScoreUpdate = 1
 
 	// player automation
-	MaxStdDev4Score = 50
+	MaxStdDev4Score = 100
 	MinMeanScore    = 10
 	MaxStdDev4Delay = 5
 	MinMeanDelay    = 5
