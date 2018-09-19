@@ -1,4 +1,5 @@
 ## Environment setup
+* You need not clone this repository manually. The script below would appropriately setup everything as discussed below.
 * Copy the following code and save it as a shell script. Run the script.
 ```
 sudo apt install golang-go -y
