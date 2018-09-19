@@ -56,8 +56,6 @@ func main() {
 	tmp, _ := strconv.Atoi(string(data))
 	score := int64(tmp)
 
-	playerData := map[string]int64{"score": score, "timestamp": 0}
-
 	// Post scores
 	if manual == true {
 		reader := bufio.NewReader(os.Stdin)
@@ -79,16 +77,8 @@ func main() {
 				continue
 			}
 
-			// Update playerData data structure
-			playerData["score"] = int64(tmp)
-			playerData["timestamp"] = time.Now().Unix()
-			serializedPlayerData, err := json.Marshal(playerData)
-			utils.ExitIfError(err, "Could not serialize playerData")
-
-			// Send data to zk
-			stat, err = conn.Set(scoreZnodePath, serializedPlayerData, stat.Version)
-			utils.ExitIfError(err, "Could not post score to ZK")
-			fmt.Printf("Score %d posted to zookeeper.\n", playerData["score"])
+			// Post score
+			stat = post(conn, score, scoreZnodePath, stat)
 		}
 	} else {
 		// Parse the additional parameters to automate the score generation
@@ -135,15 +125,9 @@ func main() {
 			// Update playerData
 			score = randomize(minScore, maxScore, stdDevScore, meanScore)
 			delay = randomize(minDelay, maxDelay, stdDevDelay, meanDelay)
-			playerData["score"] = score
-			playerData["timestamp"] = time.Now().Unix()
-			serializedPlayerData, err := json.Marshal(playerData)
-			utils.ExitIfError(err, "Could not serialize playerData")
 
-			// Send data to zk
-			stat, err = conn.Set(scoreZnodePath, serializedPlayerData, stat.Version)
-			utils.ExitIfError(err, "Could not post score to ZK")
-			fmt.Printf("Score %d posted to zookeeper.\n", score)
+			// Post score
+			stat = post(conn, score, scoreZnodePath, stat)
 
 			// sleep
 			count--
@@ -175,9 +159,22 @@ func randomize(min, max, stddev, mean int64) int64 {
 	// Generate a number with normal probabilistic distribution
 	num := int64(rand.NormFloat64() * float64(stddev) + float64(mean))
 	if num < 0 {
-		return 0
+		return randomize(min, max, stddev, mean)
 	}
 	return num
-	// Normalize the number to lie between min and max
-	//return (max - min) * (num/math.MaxInt64) + min
+}
+
+func post(conn *zk.Conn, score int64, scoreZnodePath string, stat *zk.Stat) *zk.Stat {
+	playerData := map[string]int64{"score": score, "timestamp": 0}
+	playerData["score"] = score
+	playerData["timestamp"] = time.Now().Unix()
+	serializedPlayerData, err := json.Marshal(playerData)
+	utils.ExitIfError(err, "Could not serialize playerData")
+
+	// Send data to zk
+	stat, err = conn.Set(scoreZnodePath, serializedPlayerData, stat.Version)
+	utils.ExitIfError(err, "Could not post score to ZK")
+	fmt.Printf("Score %d posted to zookeeper.\n", score)
+
+	return stat
 }
