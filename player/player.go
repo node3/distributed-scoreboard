@@ -13,23 +13,11 @@ import (
 	"time"
 )
 
+
 func main() {
 	/* ********************** Parse arguments ****************** */
 	args := os.Args[1:]
-	if len(args) != 2 && len(args) != 5 {
-		fmt.Printf("Expected 2 or 5 arguments, got %d\n", len(args))
-		os.Exit(1)
-	}
-
-	player := args[1]
-	server := args[0]
-
-	// Check for automated run or manual input
-	manual := true
-	var err error
-	if len(args) == 5 {
-		manual = false
-	}
+	player, server, manual := parseArgs(args)
 
 	/* ********************** Register with server ****************** */
 	// Connect to server
@@ -163,6 +151,24 @@ func main() {
 			time.Sleep(time.Duration(delay) * time.Second)
 		}
 	}
+}
+
+func parseArgs(args []string) (string, string, bool) {
+	if len(args) != 2 && len(args) != 5 {
+		fmt.Printf("Expected 2 or 5 arguments, got %d\n", len(args))
+		os.Exit(1)
+	}
+
+	player := args[1]
+	server := args[0]
+
+	// Check for automated run or manual input
+	manual := true
+
+	if len(args) == 5 {
+		manual = false
+	}
+	return player, server, manual
 }
 
 func randomize(min, max, stddev, mean int64) int64 {

@@ -16,12 +16,14 @@ echo GOPATH=$GOPATH
 ```export GOPATH=<Absolute path of parent directory of src directory>```
 
 ## Run player
+* Ensure GOPATH is set first.
 ```   
 cd $GOPATH
-go run src/distributed-scoreboard/player/player.go 127.0.0.1 Thor 
+go run src/distributed-scoreboard/player/player.go 127.0.0.1 Thor 100 10 500
 ```
 
 ## Run watcher
+* Ensure GOPATH is set first.
 ```
 cd $GOPATH
 go run src/distributed-scoreboard/watcher/watcher.go 127.0.0.1 25
