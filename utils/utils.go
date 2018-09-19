@@ -22,8 +22,8 @@ const (
 	// player automation
 	MaxStdDev4Score = 100
 	MinMeanScore    = 10
-	MaxStdDev4Delay = 5
-	MinMeanDelay    = 5
+	MaxStdDev4Delay = 2
+	MinMeanDelay    = 0
 	MaxMeanDelay    = 10
 )
 

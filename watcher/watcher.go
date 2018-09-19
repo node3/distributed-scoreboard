@@ -15,18 +15,7 @@ import (
 func main() {
 	// Parse arguments
 	args := os.Args[1:]
-	if len(args) != 2 {
-		fmt.Printf("Expected 2 arguments, got %d\n", len(args))
-		os.Exit(1)
-	}
-
-	server := args[0]
-	listSize, err := strconv.Atoi(args[1])
-	utils.ExitIfError(err, "Could not convert size to integer.")
-	if listSize > 25 || listSize < 1 {
-		fmt.Printf("Display size expected in range [1, 25], got %d", listSize)
-		os.Exit(1)
-	}
+	server, listSize := parseArgs(args)
 
 	/* ********************** Register with server ****************** */
 	// Connect to server
@@ -69,7 +58,8 @@ func main() {
 	/* ********************* Display score and status ************************* */
 	for {
 		updateMsg := <-ch
-		if updateMsg.Type == utils.OnlineStatusUpdate {	// Online status change arrives at channel
+		if updateMsg.Type == utils.OnlineStatusUpdate {
+			// Online status change arrives at channel
 			online = make(map[string]bool)
 			if len(updateMsg.Players) > 0 {
 				for _, player := range strings.Split(updateMsg.Players, ",") {
@@ -80,7 +70,8 @@ func main() {
 					}
 				}
 			}
-		} else {										// Score post update arrives at channel
+		} else {
+			// Score post update arrives at channel
 			data := utils.Data {
 				Score: updateMsg.Score,
 				Player: updateMsg.Players,
@@ -100,7 +91,7 @@ func main() {
 func watchOnlineStatus(server string, ch chan utils.Update) {
 	// Create a new connection for the new routine
 	conn, _, err := zk.Connect([]string{server}, time.Second)
-	utils.ExitIfError(err, "Conn: Could not connect to Zk server")
+	utils.ExitIfError(err, "watchOnlineStatus: Could not connect to Zk server")
 	defer conn.Close()
 
 	// Keep watching forever
@@ -127,7 +118,7 @@ func watchOnlineStatus(server string, ch chan utils.Update) {
 func watchPlayerScores(server string, player string, ch chan utils.Update) {
 	// Create a new connection for the new routine
 	conn, _, err := zk.Connect([]string{server}, time.Second)
-	utils.ExitIfError(err, "Conn: Could not connect to Zk server")
+	utils.ExitIfError(err, "watchPlayerScores: Could not connect to Zk server")
 	defer conn.Close()
 
 	var data map[string]int64
@@ -135,8 +126,8 @@ func watchPlayerScores(server string, player string, ch chan utils.Update) {
 	for {
 		rawData, _, ech, err := conn.GetW(znodePath)
 		utils.ExitIfError(err, "watchPlayerScores: Could not GetW score for player " + player)
-		json.Unmarshal(rawData, &data)
-		utils.ExitIfError(err, "watchPlayerScores: Could not convert byte array to int64")
+		err = json.Unmarshal(rawData, &data)
+		utils.ExitIfError(err, "watchPlayerScores: Could not unmarshal byte array to map")
 		// Send the main routine updated score
 		updateMsg := utils.Update{
 			Type:      utils.ScoreUpdate,
@@ -151,4 +142,21 @@ func watchPlayerScores(server string, player string, ch chan utils.Update) {
 		// wait for zookeeper to send something into the channel
 		_ = <-ech
 	}
+}
+
+func parseArgs(args []string) (string, int) {
+	if len(args) != 2 {
+		fmt.Printf("Expected 2 arguments, got %d\n", len(args))
+		os.Exit(1)
+	}
+
+	server := args[0]
+	listSize, err := strconv.Atoi(args[1])
+	utils.ExitIfError(err, "Could not convert size to integer.")
+	if listSize > 25 || listSize < 1 {
+		fmt.Printf("Display size expected in range [1, 25], got %d", listSize)
+		os.Exit(1)
+	}
+
+	return server, listSize
 }
