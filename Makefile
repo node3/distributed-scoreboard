@@ -6,6 +6,7 @@ make:
 	go get github.com/samuel/go-zookeeper/zk
 	go install distributed-scoreboard/player
 	go install distributed-scoreboard/watcher
-	sudo cp $(GOPATH)/bin/* /usr/bin/
+	sudo cp bin/watcher /usr/bin/watcher
+	sudo cp bin/player /usr/bin/player
 
 .ONESHELL:
