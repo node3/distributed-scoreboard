@@ -46,7 +46,10 @@ func main() {
 
 	// Register with scoreboard
 	scoreZnodePath := utils.GetZnodePath(utils.ScoreDir, player)
-	znode, err = conn.Create(scoreZnodePath, []byte("0"), utils.FlagRegular, acl)
+    InitialPlayerData := map[string]int64{"score": 0, "timestamp": 0}
+    serializedInitialPlayerData, err := json.Marshal(InitialPlayerData)
+	utils.ExitIfError(err, "Could not serialise initial player data")
+	znode, err = conn.Create(scoreZnodePath, serializedInitialPlayerData, utils.FlagRegular, acl)
 	fmt.Printf("Znode %s created. %s can now post scores.\n", scoreZnodePath, player)
 
 	/* ************************* Send data ************************** */
